@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dog Breeds</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue-router/4.2.2/vue-router.global.min.js"></script>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .dog__container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 30px;
+    }
+    
+    header {
+      text-align: center;
+    }
+    
+    .dog__listing {
+      padding: 10px;
+    }
+    
+    .dog__listing__grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      list-style: none;
+      padding: 0;
+      gap: 22px;
+    }
+
+    @media (max-width: 480px) {
+      .dog__listing__grid {
+        display: flex;
+        flex-direction: column;
+      }
+    }
+    
+    .dog__listing__item {
+      padding: 16px;
+      background-color: #ffffff;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    
+    .dog__listing__item:hover {
+      background-color: #e6e6e6;
+      box-shadow: 0 5px 8px rgba(0,0,0,0.2);
+    }
+
+    .button__wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .button__wrapper button {
+      border: none;
+      cursor: pointer;
+      font-size: 28px;
+      border-radius: 8px;
+      padding: 0 12px;
+      background: #d9d9d9;
+    }
+
+    .dog__details {
+      padding: 20px;
+    }
+    
+    .dog__detail__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    @media (max-width: 480px) {
+      .dog__detail__grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .dog__detail__img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .dog__detail__img .none--img {
+      height: 300px;
+      background-color: #e6e6e6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    
+    .dog__details__info {
+      background-color: #ffffff;
+      padding: 20px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 38px;
+      font-size: 16px;
+      color: #666666;
+    }
+    
+    .error {
+      color: #d9534f;
+      padding: 20px;
+      text-align: center;
+      background-color: #f8d7da;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .debug {
+      background-color: #f0f0f0;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+  </div>
+
+  <script>
+      const { createApp, ref, onMounted } = Vue;
+      const { createRouter, createWebHashHistory } = VueRouter;
+      
+      const API_KEY = 'live_k5hfBdfhlhcd2TzKHI5GzrUwtwmVmp2a6Qx01HUYEcxRC0CWLWXgM3C7aKAwgdXT';
+      
+      const BreedsList = {
+        template: `
+          <div class="dog__listing">
+            <h2>Dog Breeds Listing</h2>
+            <div v-if="loading" class="loading">Loading breeds...</div>
+            <div v-else-if="error" class="error">{{ error }}</div>
+            <ul v-else class="dog__listing__grid">
+              <li v-for="breed in breeds" 
+                  :key="breed.id" 
+                  @click="showBreedDetails(breed.id)" 
+                  class="dog__listing__item">
+                {{ breed.name }}
+              </li>
+            </ul>
+          </div>
+        `,
+        setup() {
+          const breeds = ref([]);
+          const loading = ref(true);
+          const error = ref(null);
+          const router = VueRouter.useRouter();
+          
+          const fetchBreeds = async () => {
+            try {
+              const response = await fetch('https://api.thedogapi.com/v1/breeds', {
+                headers: {
+                  'x-api-key': API_KEY
+                }
+              });
+              
+              if (!response.ok) {
+                throw new Error(`Failed to fetch dog breeds: ${response.status}`);
+              }
+              
+              breeds.value = await response.json();
+              loading.value = false;
+            } catch (err) {
+              console.error('Error fetching breeds:', err);
+              error.value = `Error: ${err.message}`;
+              loading.value = false;
+            }
+          };
+          
+          const showBreedDetails = (breedId) => {
+            console.log(`Navigating to breed with ID: ${breedId}`);
+            router.push(`/breed/${breedId}`);
+          };
+          
+          onMounted(() => {
+            console.log('Breeds Listing mounted');
+            fetchBreeds();
+          });
+          
+          return {
+            breeds,
+            loading,
+            error,
+            showBreedDetails
+          };
+        }
+      };
+      
+      const BreedDetails = {
+        props: ['id'],
+        template: `
+          <div class="breed-details">
+            
+            <div v-if="loading" class="loading">Loading breed details...</div>
+            <div v-else-if="error" class="error">{{ error }}</div>
+            <div v-else-if="breed">
+                <div class="button__wrapper">
+                    <button @click="goBack"><</button>
+                    <h2>{{ breed.name }}</h2>
+                </div>
+              
+              <div class="dog__detail__grid">
+                <div class="dog__detail__img">
+                  <img v-if="imgUrl" :src="imgUrl" :alt="breed.name">
+                  <div v-else class="none--img">No image available</div>
+                </div>
+                
+                <div class="dog__details__info">
+                  <p v-if="breed.bred_for"><strong>Bred for:</strong> {{ breed.bred_for }}</p>
+                  <p v-if="breed.breed_group"><strong>Breed group:</strong> {{ breed.breed_group }}</p>
+                  <p><strong>Temperament:</strong> {{ breed.temperament || 'N/A' }}</p>
+                  <p><strong>Origin:</strong> {{ breed.origin || 'N/A' }}</p>
+                  <p><strong>Life span:</strong> {{ breed.life_span || 'N/A' }}</p>
+                  <p><strong>Weight:</strong> {{ breed.weight?.metric || 'N/A' }} kg</p>
+                  <p><strong>Height:</strong> {{ breed.height?.metric || 'N/A' }} cm</p>
+                </div>
+              </div>
+            </div>
+            <div v-else class="error">Breed not found</div>
+          </div>
+        `,
+        setup(props) {
+          const breed = ref(null);
+          const imgUrl = ref(null);
+          const loading = ref(true);
+          const error = ref(null);
+          const router = VueRouter.useRouter();
+          
+          const fetchBreedDetails = async () => {
+            try {
+              const breedResponse = await fetch(`https://api.thedogapi.com/v1/breeds/${props.id}`, {
+                headers: {
+                  'x-api-key': API_KEY
+                }
+              });
+              
+              if (!breedResponse.ok) {
+                throw new Error(`Failed to fetch breed details: ${breedResponse.status}`);
+              }
+              
+              breed.value = await breedResponse.json();
+              
+              const imageResponse = await fetch(`https://api.thedogapi.com/v1/images/search?breed_ids=${props.id}&limit=1`, {
+                headers: {
+                  'x-api-key': API_KEY
+                }
+              });
+              
+              if (imageResponse.ok) {
+                const images = await imageResponse.json();
+                if (images && images.length > 0) {
+                  imgUrl.value = images[0].url;
+                } else {
+                  console.log('Image not found');
+                }
+              } else {
+                console.error('Failed to fetch image');
+              }
+              
+              loading.value = false;
+            } catch (err) {
+              console.error('Error fetching breed details:', err);
+              error.value = `Error: ${err.message}`;
+              loading.value = false;
+            }
+          };
+          
+          const goBack = () => {
+            router.push('/');
+          };
+          
+          onMounted(() => {
+            fetchBreedDetails();
+          });
+          
+          return {
+            breed,
+            imgUrl,
+            loading,
+            error,
+            goBack
+          };
+        }
+      };
+      
+      const App = {
+        template: `
+          <div class="dog__container">
+            <header>
+              <h1>Dog Breeds</h1>
+            </header>
+            <main>
+              <router-view></router-view>
+            </main>
+          </div>
+        `
+      };
+      
+      try {
+        const router = createRouter({
+          history: createWebHashHistory(),
+          routes: [
+            { path: '/', component: BreedsList },
+            { path: '/breed/:id', component: BreedDetails, props: true },
+            { path: '/index.html', redirect: '/' }
+          ]
+        });
+
+        const app = createApp(App);
+        app.use(router);
+        app.mount('#app');
+      } catch (err) {
+        console.error('Error initializing app:', err);
+        document.getElementById('app').innerHTML = `
+          <div class="error">
+            <h2>Error initializing app</h2>
+            <p>${err.message}</p>
+            <div class="debug">
+              <p>Check the browser console for more details.</p>
+            </div>
+          </div>
+        `;
+      }
+  </script>
+</body>
+</html>
